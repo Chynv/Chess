@@ -1,16 +1,17 @@
 import pygame as p
-
-HEIGHT = WIDTH = 512
+from CONST import *
 from chess import ChessEngine
-DIMENSION = 8
-SQ_SIZE = HEIGHT // DIMENSION
-MAX_FPS = 30
-IMAGES = {}
-PIECE_SIZE = 0.9 * SQ_SIZE
+from time import time
+import math
+
 
 def loadImages():
     for image in ["bb", "bk", "bn", "bp", "bq", "br", "wB", "wK", "wN", "wP", "wQ", "wR"]:
-        IMAGES[image[1]] = p.transform.smoothscale(p.image.load("chess/images/{}.svg".format(image)), (PIECE_SIZE, PIECE_SIZE))
+        IMAGES[image[1]] = p.transform.smoothscale(p.image.load("chess/images/{}.svg".format(image)),
+                                                   (PIECE_SIZE, PIECE_SIZE))
+        IMAGES[image[1] + "big"] = p.transform.smoothscale(p.image.load("chess/images/{}.svg".format(image)),
+                                                           (PIECE_SIZE + 10, PIECE_SIZE + 10))
+
 
 def main():
     p.init()
@@ -23,59 +24,107 @@ def main():
     screen.fill(p.Color("white"))
     gs = ChessEngine.GameState()
 
-    validMoves = gs.getValidmoves()
-    moveMade = False # Flag variable
+    validMoves = gs.getValidMoves()
+    moveMade = False  # Flag variable
 
     loadImages()
     running = True
     sqSelected = ()
-    playerClicks = [] # Two tuples [0] being piece to move [1] being location
+    playerClicks = []  # Two tuples [0] being piece to move [1] being location
+
+    Holding = False
+    offset = None
+
+    dropped = False
+
     while running:
         for e in p.event.get():
             if e.type == p.QUIT:
                 running = False
             elif e.type == p.MOUSEBUTTONDOWN:
+
                 location = p.mouse.get_pos()
                 col = location[0] // SQ_SIZE
                 row = location[1] // SQ_SIZE
-                if (row, col) == sqSelected:
+
+                offset = (location[0] % SQ_SIZE, location[1] % SQ_SIZE)
+
+                Square = (row, col)
+
+                # If I have nothing in hand
+                if sqSelected == ():
+                    dropped = False
+                    if gs.board[row][col] == "_":
+                        continue
+                    else:
+                        sqSelected = Square
+                        Holding = True
+                else:  # If I have something in hand
+                    if Square == sqSelected:
+                        Holding = True
+                        continue
+                    move = ChessEngine.Move(sqSelected, (row, col), gs.board)
+                    result = gs.makeMove(move)
                     sqSelected = ()
-                    playerClicks = []
+            elif e.type == p.MOUSEBUTTONUP:
+
+                offset = None
+
+                if not Holding:
+                    continue
+
+                Holding = False
+
+                location = p.mouse.get_pos()
+                col = location[0] // SQ_SIZE
+                row = location[1] // SQ_SIZE
+
+                Square = (row, col)
+
+                if sqSelected == Square:
+                    if not dropped:
+                        dropped = True
+                    else:
+                        sqSelected = ()
+                    continue
+
+                move = ChessEngine.Move(sqSelected, Square, gs.board)
+                result = gs.makeMove(move)
+                if result == "Successful Move":
+                    sqSelected = ()
                 else:
-                    sqSelected = (row, col)
-                    playerClicks.append(sqSelected)
-                if len(playerClicks) == 2:
-                    move = ChessEngine.Move(playerClicks[0], playerClicks[1], gs.board)
-                    if move in validMoves:
-                        print(move.getChessNotation())
-                        gs.makeMove(move)
-                        moveMade = True
-                    # Reset after
-                    sqSelected = ()
-                    playerClicks = []
+                    dropped = True
+
             elif e.type == p.KEYDOWN:
                 if e.key == p.K_r:
                     gs.undoMove()
+                    sqSelected = ()
+                    Holding = False
                     moveMade = True
 
         if moveMade:
-            validMoves = gs.getValidmoves()
+            validMoves = gs.getValidMoves()
             moveMade = False
 
-        drawGameState(screen, gs, my_font)
+        drawGameState(screen, gs, my_font, sqSelected, Holding, offset)
         clock.tick(MAX_FPS)
         p.display.flip()
 
-
+def attemptMove():
+    pass
 
 
 # Responsible for the graphics!
-def drawGameState(screen, state, font):
+def drawGameState(screen, state, font, square, hold, offset):
     # Draw board first obviously goofball
-    drawBoard(screen, state.board)
+    drawBoard(screen, state.board, square, hold)
     drawCoordinates(screen, font)
 
-def drawBoard(screen, board):
+    if hold:
+        drawHold(screen, state.board, offset, square)
+
+def drawBoard(screen, board, square, hold):
+    a, b = p.mouse.get_pos()
     x_pos, y_pos = p.mouse.get_pos()
     col, row = x_pos // SQ_SIZE, y_pos // SQ_SIZE
     for y in range(DIMENSION):
@@ -88,24 +137,36 @@ def drawBoard(screen, board):
                 mr, mg, mb = [(105, 135, 76), (230, 238, 210)][(y + x) % 2]
                 mr, mg, mb = mr * al, mg * al, mb * al
                 colour = (r + mr, g + mg, b + mb)
+
+            # just overriding the colour because I'm lazy bones
+            if (y, x) == square:
+                colour = (246,245,123)
             p.draw.rect(screen, colour, p.Rect(x * SQ_SIZE, y * SQ_SIZE, SQ_SIZE, SQ_SIZE))
 
             d = (SQ_SIZE - PIECE_SIZE) / 2
+            if hold and square == (y, x):
+                continue
             if board[y][x] != "_":
                 screen.blit(IMAGES[board[y][x]],
                             p.Rect(x * SQ_SIZE + d, y * SQ_SIZE + d, PIECE_SIZE, PIECE_SIZE))
 
-
-ranksToRows = {'8': 0, '7': 1, '6': 2, '5': 3, '4': 4, '3': 5, '2': 6, '1': 7}
-rowsToRanks = {j: i for i, j in ranksToRows.items()}
-filesToCols = {'a': 0, 'b': 1, 'c': 2, 'd': 3, 'e': 4, 'f': 5, 'g': 6, 'h': 7}
-colsToFiles = {j: i for i, j in filesToCols.items()}
 
 def drawCoordinates(screen, font):
     colour = [(105, 135, 76), (230, 238, 210)]
     for i in range(DIMENSION):
         screen.blit(font.render(rowsToRanks[i], False, colour[i % 2]), p.Rect(3, 4 + i * SQ_SIZE, 6, 6))
         screen.blit(font.render(colsToFiles[i], False, colour[(i + 1) % 2]), p.Rect(55 + i * SQ_SIZE, 496, 6, 6))
+
+def drawHold(screen, board, offset, sqSelected):
+    a, b = p.mouse.get_pos()
+    y, x = sqSelected
+    d = PIECE_SIZE // 2
+    # d = (PIECE_SIZE + 10) // 2
+    g = time() * 3
+    swing = HEIGHT // 64
+    screen.blit(IMAGES[board[y][x]], # + "big"
+                p.Rect(a - d + swing * math.cos(g), b - d + swing / 2 * math.sin(g), PIECE_SIZE, PIECE_SIZE))
+
 
 if __name__ == "__main__":
     main()
