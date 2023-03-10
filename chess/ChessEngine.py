@@ -28,8 +28,8 @@ class GameState:
         }
 
     def reset(self):
-        board = unpack_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
-        white_to_move = True
+        self.board = unpack_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
+        self.white_to_move = True
         self.move_log = []
 
     def makeMove(self, move):
@@ -63,7 +63,6 @@ class GameState:
         moves = []
         for y in range(8):
             for x in range(8):
-                print(self.white_to_move)
                 # If it's black it's lowercase
                 # Black and white's turn
                 # True ^ True = False

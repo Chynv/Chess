@@ -3,6 +3,7 @@ from CONST import *
 from chess import ChessEngine
 from time import time
 import math
+import random
 
 
 def loadImages():
@@ -16,7 +17,7 @@ def loadImages():
 def main():
     p.init()
     p.font.init()
-    my_font = p.font.SysFont('OpenType', 20)
+    my_font = p.font.SysFont('OpenType', FONT_SIZE)
     p.display.set_caption("Chess")
     p.display.set_icon(p.image.load("chess/images/icon.png"))
     screen = p.display.set_mode((WIDTH, HEIGHT))
@@ -36,6 +37,7 @@ def main():
     offset = None
 
     dropped = False
+    displayedMoves = []
 
     while running:
         for e in p.event.get():
@@ -50,6 +52,7 @@ def main():
                 offset = (location[0] % SQ_SIZE, location[1] % SQ_SIZE)
 
                 Square = (row, col)
+                isWhite = gs.board[row][col].islower()
 
                 # If I have nothing in hand
                 if sqSelected == ():
@@ -65,7 +68,18 @@ def main():
                         continue
                     move = ChessEngine.Move(sqSelected, (row, col), gs.board)
                     result = gs.makeMove(move)
-                    sqSelected = ()
+                    r, c = sqSelected
+
+                    if result == "Successful Move":
+                        moveMade = True
+                        sqSelected = ()
+                    elif gs.board[row][col] != "_":
+                        Holding = True
+                        dropped = False
+                        sqSelected = Square
+                    else:
+                        sqSelected = ()
+
             elif e.type == p.MOUSEBUTTONUP:
 
                 offset = None
@@ -91,6 +105,7 @@ def main():
                 move = ChessEngine.Move(sqSelected, Square, gs.board)
                 result = gs.makeMove(move)
                 if result == "Successful Move":
+                    moveMade = True
                     sqSelected = ()
                 else:
                     dropped = True
@@ -103,6 +118,8 @@ def main():
                     moveMade = True
 
         if moveMade:
+            # validMoves = gs.getValidMoves()
+            # gs.makeMove(random.choice(validMoves))
             validMoves = gs.getValidMoves()
             moveMade = False
 
@@ -139,6 +156,7 @@ def drawBoard(screen, board, square, hold):
                 colour = (r + mr, g + mg, b + mb)
 
             # just overriding the colour because I'm lazy bones
+
             if (y, x) == square:
                 colour = (246,245,123)
             p.draw.rect(screen, colour, p.Rect(x * SQ_SIZE, y * SQ_SIZE, SQ_SIZE, SQ_SIZE))
