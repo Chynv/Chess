@@ -1,3 +1,4 @@
+# I might start doing this from now on. Super fun just putting all of the constants in one file.
 HEIGHT = WIDTH = 512
 DIMENSION = 8
 SQ_SIZE = HEIGHT // DIMENSION

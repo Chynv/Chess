@@ -54,7 +54,7 @@ class GameState:
     # If there are no moves that don't leave you in check you dead as hell lmao
     # If there are no moves and you're not in check it's a stalemate
     # I think to make it less computationally costly, I can project the moves from the king!
-    # If it detects a knight in one knight move from itself it is IN CHECK!
+    # If it detects a knight in one knight move from itself it is IN CHECK! Coolio
 
     def getValidMoves(self):
         return self.getAllPossibleMoves()

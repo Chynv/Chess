@@ -59,7 +59,7 @@ def main():
                     else:
                         sqSelected = Square
                         Holding = True
-                else:  # If I have something in hand
+                else:  # If I have something in hand.
                     if Square == sqSelected:
                         Holding = True
                         continue
