@@ -27,6 +27,7 @@ def main():
 
     validMoves = gs.getValidMoves()
     moveMade = False  # Flag variable
+    promotion = False
 
     loadImages()
     running = True
@@ -38,6 +39,8 @@ def main():
 
     dropped = False
     displayedMoves = []
+    highlight = []
+    redHighlight = []
 
     while running:
         for e in p.event.get():
@@ -67,16 +70,18 @@ def main():
                         Holding = True
                         continue
                     move = ChessEngine.Move(sqSelected, (row, col), gs.board)
-                    result = gs.makeMove(move)
-                    r, c = sqSelected
+                    result = gs.makeMove(move, validMoves)
 
+                    # If the move worked, that's great!
                     if result == "Successful Move":
                         moveMade = True
                         sqSelected = ()
+                    # If it didn't work, if it's not to an empty square, select the new piece!
                     elif gs.board[row][col] != "_":
                         Holding = True
                         dropped = False
                         sqSelected = Square
+                    # Okay it's an empty square? Unselect.
                     else:
                         sqSelected = ()
 
@@ -103,7 +108,7 @@ def main():
                     continue
 
                 move = ChessEngine.Move(sqSelected, Square, gs.board)
-                result = gs.makeMove(move)
+                result = gs.makeMove(move, validMoves)
                 if result == "Successful Move":
                     moveMade = True
                     sqSelected = ()
@@ -120,33 +125,45 @@ def main():
         if moveMade:
             # validMoves = gs.getValidMoves()
             # gs.makeMove(random.choice(validMoves))
+            if gs.move_log:
+                lastMove = gs.move_log[-1]
+                highlight = [(lastMove.sr, lastMove.sc), (lastMove.er, lastMove.ec)]
+            else:
+                highlight = []
+
+            redHighlight = gs.checkProject(True)
+
             validMoves = gs.getValidMoves()
             moveMade = False
 
-        drawGameState(screen, gs, my_font, sqSelected, Holding, offset)
+        # Probably a bad sign if I'm stacking this many damn parameters but saul good because I'm a master navigator
+        drawGameState(screen, gs, my_font, sqSelected, Holding, offset, highlight, redHighlight, promotion)
         clock.tick(MAX_FPS)
         p.display.flip()
 
-def attemptMove():
-    pass
-
 
 # Responsible for the graphics!
-def drawGameState(screen, state, font, square, hold, offset):
-    # Draw board first obviously goofball
-    drawBoard(screen, state.board, square, hold)
+def drawGameState(screen, state, font, square, hold, offset, highlight, redHighlight, promotion):
+    # Draw board first obviously goofball. Don't draw what's being held. That ain't your job funct.
+    drawBoard(screen, state.board, square, hold, highlight, redHighlight)
     drawCoordinates(screen, font)
 
+    # If something is being held, draw it mate!
     if hold:
         drawHold(screen, state.board, offset, square)
 
-def drawBoard(screen, board, square, hold):
+    if promotion:
+        pass
+
+
+def drawBoard(screen, board, square, hold, highlight, redHighlight):
     a, b = p.mouse.get_pos()
     x_pos, y_pos = p.mouse.get_pos()
     col, row = x_pos // SQ_SIZE, y_pos // SQ_SIZE
     for y in range(DIMENSION):
         for x in range(DIMENSION):
             colour = [(230, 238, 210),(105, 135, 76)][(y + x) % 2]
+
             if y == row and x == col:
                 al = 0.3
                 r, g, b = colour
@@ -157,8 +174,12 @@ def drawBoard(screen, board, square, hold):
 
             # just overriding the colour because I'm lazy bones
 
-            if (y, x) == square:
-                colour = (246,245,123)
+            if (y, x) in [square] + highlight:
+                colour = [(246,245,123), (212, 219, 127)][(y + x) % 2]
+            # elif (y, x) in highlight: # In case I want to make a different colour for moves
+            #     colour = [(246,245,123), (212, 219, 127)][(y + x) % 2]
+            if (y, x) in redHighlight:
+                colour = [(194, 35, 35), (194, 35, 35)][(y + x) % 2]
             p.draw.rect(screen, colour, p.Rect(x * SQ_SIZE, y * SQ_SIZE, SQ_SIZE, SQ_SIZE))
 
             d = (SQ_SIZE - PIECE_SIZE) / 2
