@@ -1,4 +1,5 @@
 import pygame as p
+from pygame import gfxdraw as gfd
 from CONST import *
 from chess import ChessEngine
 from time import time
@@ -15,6 +16,7 @@ def loadImages():
 
 
 def main():
+    # Pygame stuff that I don't quite understand
     p.init()
     p.font.init()
     my_font = p.font.SysFont('OpenType', FONT_SIZE)
@@ -25,7 +27,7 @@ def main():
     screen.fill(p.Color("white"))
     gs = ChessEngine.GameState()
 
-    validMoves = gs.getValidMoves()
+    validMoves, moveDict = gs.getValidMoves()
     moveMade = False  # Flag variable
     promotion = False
 
@@ -43,6 +45,7 @@ def main():
     redHighlight = []
     colour = "W"
     start, end = (), ()
+    kingLoc = ()
 
     while running:
         for e in p.event.get():
@@ -155,9 +158,10 @@ def main():
                     moveMade = True
 
         if moveMade:
-            validMoves = gs.getValidMoves()
-            if validMoves:
-                gs.makeMove(random.choice(validMoves), validMoves)
+            # random robot. Very goofy when you try to undo moves
+            # validMoves = gs.getValidMoves()
+            # if validMoves:
+            #     gs.makeMove(random.choice(validMoves), validMoves)
 
             if gs.move_log:
                 lastMove = gs.move_log[-1]
@@ -166,22 +170,27 @@ def main():
                 highlight = []
 
             redHighlight = gs.checkProject(True)
+            if redHighlight:
+                if gs.white_to_move:
+                    kingLoc = gs.whiteKingLocation
+                else:
+                    kingLoc = gs.blackKingLocation
 
-            validMoves = gs.getValidMoves()
+            validMoves, moveDict = gs.getValidMoves()
             moveMade = False
 
         # Probably a bad sign if I'm stacking this many damn parameters but saul good because I'm a master navigator
-        drawGameState(screen, gs, my_font, sqSelected, Holding, offset, highlight, redHighlight, promotion, colour)
+        drawGameState(screen, gs, my_font, sqSelected, Holding, offset, highlight, redHighlight, promotion, colour, moveDict, kingLoc)
         clock.tick(MAX_FPS)
         p.display.flip()
 
 
 # Responsible for the graphics!
-def drawGameState(screen, state, font, square, hold, offset, highlight, redHighlight, promotion, colour):
+def drawGameState(screen, state, font, square, hold, offset, highlight, redHighlight, promotion, colour, moveDict, kingLoc):
     # Promotion is an interrupting game state. I don't know how to think about it.
     if not promotion:
         # Draw board first obviously goofball. Don't draw what's being held. That ain't your job funct.
-        drawBoard(screen, state.board, square, hold, highlight, redHighlight)
+        drawBoard(screen, state.board, square, hold, highlight, redHighlight, moveDict, kingLoc)
         drawCoordinates(screen, font)
 
         # If something is being held, draw it mate! Haha mate good pun.
@@ -192,7 +201,7 @@ def drawGameState(screen, state, font, square, hold, offset, highlight, redHighl
         drawPromotionMenu(screen, colour)
 
 
-def drawBoard(screen, board, square, hold, highlight, redHighlight):
+def drawBoard(screen, board, square, hold, highlight, redHighlight, moveDict, kingLoc):
     a, b = p.mouse.get_pos()
     x_pos, y_pos = p.mouse.get_pos()
     col, row = x_pos // SQ_SIZE, y_pos // SQ_SIZE
@@ -209,15 +218,36 @@ def drawBoard(screen, board, square, hold, highlight, redHighlight):
                 colour = (r + mr, g + mg, b + mb)
 
             # just overriding the colour because I'm lazy bones
-
+            moveCol = [(207, 217, 182), (95, 125, 67)][(y + x) % 2]
             if (y, x) in [square] + highlight:
                 colour = [(246,245,123), (212, 219, 127)][(y + x) % 2]
+                moveCol = [(230, 230, 108), (194, 201, 113)][(y + x) % 2]
             # elif (y, x) in highlight: # In case I want to make a different colour for moves
             #     colour = [(246,245,123), (212, 219, 127)][(y + x) % 2]
-            if (y, x) in redHighlight:
+
+
+            # if (y, x) in redHighlight:
+            #     colour = [(194, 35, 35), (194, 35, 35)][(y + x) % 2]
+            #     moveCol = [(173, 31, 31), (176, 26, 26)][(y + x) % 2]
+            # I don't really like the red highlight. I might enable it later but it doesn't look that good.
+            # Instead the king will be highlighted red.
+            if redHighlight and (y, x) == kingLoc:
                 colour = [(194, 35, 35), (194, 35, 35)][(y + x) % 2]
+                moveCol = [(173, 31, 31), (176, 26, 26)][(y + x) % 2]
+
+
+
             p.draw.rect(screen, colour, p.Rect(x * SQ_SIZE, y * SQ_SIZE, SQ_SIZE, SQ_SIZE))
 
+            if (y, x) in moveDict[square]:
+                if board[y][x] == "_":
+                    # p.draw.circle(screen, moveCol, ((x + 1/2) * SQ_SIZE, (y + 1/2) * SQ_SIZE), SQ_SIZE//6)
+                    gfd.filled_circle(screen, int((x + 1 / 2) * SQ_SIZE), int((y + 1 / 2) * SQ_SIZE), SQ_SIZE // 6, moveCol)
+                    gfd.aacircle(screen, int((x + 1 / 2) * SQ_SIZE), int((y + 1 / 2) * SQ_SIZE), SQ_SIZE // 6, moveCol)
+
+                else:
+                    p.draw.circle(screen, moveCol, ((x + 1 / 2) * SQ_SIZE, (y + 1 / 2) * SQ_SIZE), SQ_SIZE // 2, width=6)
+                    gfd.aacircle(screen, int((x + 1 / 2) * SQ_SIZE), int((y + 1 / 2) * SQ_SIZE), SQ_SIZE // 2, moveCol)
             d = (SQ_SIZE - PIECE_SIZE) / 2
             if hold and square == (y, x):
                 continue

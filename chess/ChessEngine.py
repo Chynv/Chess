@@ -1,5 +1,6 @@
 from CONST import *
 import random
+from collections import defaultdict
 
 
 def unpack_fen(fen_string):
@@ -137,7 +138,11 @@ class GameState:
             else:
                 print("stalemate")
 
-        return moves
+        moveDict = defaultdict(list)
+        for currMove in moves:
+            moveDict[(currMove.sr, currMove.sc)].append((currMove.er, currMove.ec))
+
+        return moves, moveDict
 
     def getAllPossibleMoves(self):
         moves = []
