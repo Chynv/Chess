@@ -184,7 +184,7 @@ def drawGameState(screen, state, font, square, hold, offset, highlight, redHighl
         drawBoard(screen, state.board, square, hold, highlight, redHighlight)
         drawCoordinates(screen, font)
 
-        # If something is being held, draw it mate!
+        # If something is being held, draw it mate! Haha mate good pun.
         if hold:
             drawHold(screen, state.board, offset, square)
 

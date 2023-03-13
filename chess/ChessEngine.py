@@ -1,6 +1,7 @@
 from CONST import *
 import random
 
+
 def unpack_fen(fen_string):
     board = [["_" for _ in range(8)] for _ in range(8)]
     pos = 0
@@ -142,11 +143,7 @@ class GameState:
         moves = []
         for y in range(8):
             for x in range(8):
-                # If it's black it's lowercase
-                # Black and white's turn
-                # True ^ True = False
-                # False ^ False = False
-                # True ^ False = True
+                # I like how some parts of my code are nice and succint and other parts be lookin' like brainfuck
                 if self.board[y][x].isupper() ^ self.white_to_move:
                     continue
                 piece = self.board[y][x].lower()
