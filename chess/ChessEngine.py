@@ -54,6 +54,10 @@ class GameState:
 
     def makeMove(self, move, validMoves):
         if move in validMoves:
+
+            if move.pieceMoved.lower() == "p" and (move.er == 0 or move.er == 7) and not len(move.id) == 5:
+                return "Promotion"
+
             self.board[move.sr][move.sc] = "_"
             self.board[move.er][move.ec] = move.pieceMoved
             self.move_log.append(move)
@@ -70,8 +74,8 @@ class GameState:
             elif move.pieceMoved == "k":
                 self.blackKingLocation = (move.er, move.ec)
             print(move.pieceMoved, piecePlusColour[col + "p"])
-            if move.pieceMoved == piecePlusColour[col + "p"] and (move.er == 7 or move.er == 0):
-                self.board[move.er][move.ec] = piecePlusColour[col + "q"]
+            if move.isPawnPromotion:
+                self.board[move.er][move.ec] = piecePlusColour[col + ["q", "r", "b", "n"][int(move.id[-1])]]
 
             return "Successful Move"
         else:
@@ -118,10 +122,13 @@ class GameState:
             elif move.pieceMoved == "k":
                 self.blackKingLocation = (move.sr, move.sc)
         if len(moves) == 0:
-            if self.white_to_move:
-                r, c = self.whiteKingLocation
-            else:
-                r, c = self.blackKingLocation
+
+            # I forgot why I put this code here and it's not being used but Im afraid to remove it.
+            # I'll get rid of that habit when I get a job lol
+            # if self.white_to_move:
+            #     r, c = self.whiteKingLocation
+            # else:
+            #     r, c = self.blackKingLocation
 
             if self.checkProject():
                 # Goofiest code you've ever done seen in your damn life
@@ -177,27 +184,40 @@ class GameState:
         if r == 0 or r == 7: # Bit of a shortcut that would break down in the case of variations but
             # you sacrifice generalisability for brevity
             return
+
+        toBeAsssessed = []
+
         if self.white_to_move: # white pawn moves, duh
             # I should have kept their colour indicators in their names because underscore is a possibility
             # So I gotta do something goofy like this!!! I know this code is forbidden!!! :(
             # Also I wanted to use FEN notation (just for the pieces) because it's cute as
             if self.board[r - 1][c] == "_":
-                moves.append(Move((r, c), (r - 1, c), self.board))
+                toBeAsssessed.append(Move((r, c), (r - 1, c), self.board))
                 if r == 6 and self.board[r - 2][c] == "_":
-                    moves.append(Move((r, c), (r - 2, c), self.board))
+                    toBeAsssessed.append(Move((r, c), (r - 2, c), self.board))
             if c > 0 and self.board[r - 1][c - 1].islower() and self.board[r - 1][c - 1] != "_":
-                moves.append(Move((r, c), (r - 1, c - 1), self.board))
+                toBeAsssessed.append(Move((r, c), (r - 1, c - 1), self.board))
             if c < 7 and self.board[r - 1][c + 1].islower() and self.board[r - 1][c + 1] != "_":
-                moves.append(Move((r, c), (r - 1, c + 1), self.board))
+                toBeAsssessed.append(Move((r, c), (r - 1, c + 1), self.board))
         else: # This code hurts my heart and when I implement en passant it may bite me
             if self.board[r + 1][c] == "_":
-                moves.append(Move((r, c), (r + 1, c), self.board))
+                toBeAsssessed.append(Move((r, c), (r + 1, c), self.board))
                 if r == 1 and self.board[r + 2][c] == "_":
-                    moves.append(Move((r, c), (r + 2, c), self.board))
+                    toBeAsssessed.append(Move((r, c), (r + 2, c), self.board))
             if c > 0 and self.board[r + 1][c - 1].isupper() and self.board[r + 1][c - 1] != "_":
-                moves.append(Move((r, c), (r + 1, c - 1), self.board))
+                toBeAsssessed.append(Move((r, c), (r + 1, c - 1), self.board))
             if c < 7 and self.board[r + 1][c + 1].isupper() and self.board[r + 1][c + 1] != "_":
-                moves.append(Move((r, c), (r + 1, c + 1), self.board))
+                toBeAsssessed.append(Move((r, c), (r + 1, c + 1), self.board))
+
+        for currMove in toBeAsssessed:
+            if currMove.er == 0 or currMove.er == 7:
+                eR, eC = currMove.er, currMove.ec
+                for i in range(4):
+                    placeHold = Move((r, c), (eR, eC), self.board)
+                    placeHold.id += str(i)
+                    moves.append(placeHold)
+            else:
+                moves.append(currMove)
 
     #  Look at that code. So tasteful in its brevity. Three lines for a rook, three lines for a bishop and three
     #  lines for a queen. Oh my god, it even has my watermark.
@@ -337,6 +357,8 @@ class Move:
         self.er, self.ec = endSq
         self.pieceMoved = board[self.sr][self.sc]
         self.pieceCaptured = board[self.er][self.ec]
+        self.isPawnPromotion = self.pieceMoved.lower() == "p" and (self.er == 0 or self.er == 7)
+        self.id = str(self.sr) + str(self.sc) + str(self.er) + str(self.ec)
 
     def __eq__(self, other):
         if isinstance(other, Move):

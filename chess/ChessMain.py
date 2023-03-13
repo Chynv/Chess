@@ -41,6 +41,8 @@ def main():
     displayedMoves = []
     highlight = []
     redHighlight = []
+    colour = "W"
+    start, end = (), ()
 
     while running:
         for e in p.event.get():
@@ -49,43 +51,69 @@ def main():
             elif e.type == p.MOUSEBUTTONDOWN:
 
                 location = p.mouse.get_pos()
-                col = location[0] // SQ_SIZE
-                row = location[1] // SQ_SIZE
 
-                offset = (location[0] % SQ_SIZE, location[1] % SQ_SIZE)
+                if not promotion:
+                    col = location[0] // SQ_SIZE
+                    row = location[1] // SQ_SIZE
 
-                Square = (row, col)
-                isWhite = gs.board[row][col].islower()
+                    offset = (location[0] % SQ_SIZE, location[1] % SQ_SIZE)
 
-                # If I have nothing in hand
-                if sqSelected == ():
-                    dropped = False
-                    if gs.board[row][col] == "_":
-                        continue
-                    else:
-                        sqSelected = Square
-                        Holding = True
-                else:  # If I have something in hand.
-                    if Square == sqSelected:
-                        Holding = True
-                        continue
-                    move = ChessEngine.Move(sqSelected, (row, col), gs.board)
-                    result = gs.makeMove(move, validMoves)
+                    Square = (row, col)
+                    isWhite = gs.board[row][col].islower()
 
-                    # If the move worked, that's great!
-                    if result == "Successful Move":
-                        moveMade = True
-                        sqSelected = ()
-                    # If it didn't work, if it's not to an empty square, select the new piece!
-                    elif gs.board[row][col] != "_":
-                        Holding = True
+                    # If I have nothing in hand
+                    if sqSelected == ():
                         dropped = False
-                        sqSelected = Square
-                    # Okay it's an empty square? Unselect.
-                    else:
-                        sqSelected = ()
+                        if gs.board[row][col] == "_":
+                            continue
+                        else:
+                            sqSelected = Square
+                            Holding = True
+                    else:  # If I have something in hand.
+                        if Square == sqSelected:
+                            Holding = True
+                            continue
+                        move = ChessEngine.Move(sqSelected, (row, col), gs.board)
+                        result = gs.makeMove(move, validMoves)
+
+                        # If the move worked, that's great!
+                        if result == "Successful Move":
+                            moveMade = True
+                            sqSelected = ()
+                        # If it didn't work, if it's not to an empty square, select the new piece!
+                        elif result == "Promotion":
+                            promotion = True
+                            start, end = sqSelected, (row, col)
+                            colour = "W" if gs.board[sqSelected[0]][sqSelected[1]].isupper() else "B"
+                        elif gs.board[row][col] != "_":
+                            Holding = True
+                            dropped = False
+                            sqSelected = Square
+                        # Okay it's an empty square? Unselect.
+                        else:
+                            sqSelected = ()
+                else: # promotion menu!!
+
+                    # I think the move will be made in the promotion menu. When you make a selection,
+
+                    startX = WIDTH // 4
+                    x, y = location
+                    if not (WIDTH // 4 < x < 3 * WIDTH // 4 and HEIGHT // 2 - HEIGHT // 16 < y < 9 * HEIGHT // 16):
+                        promotion = False # 8 - 1 + 2
+                        continue
+                    moveMade = True
+                    piece = (x - startX) // SQ_SIZE
+                    g = ChessEngine.Move(start, end, gs.board)
+                    g.id += str(piece)
+                    gs.makeMove(g, validMoves)
+                    promotion = False
+
+
 
             elif e.type == p.MOUSEBUTTONUP:
+
+                if promotion:
+                    continue
 
                 offset = None
 
@@ -112,6 +140,10 @@ def main():
                 if result == "Successful Move":
                     moveMade = True
                     sqSelected = ()
+                elif result == "Promotion":
+                    promotion = True
+                    colour = "W" if gs.board[sqSelected[0]][sqSelected[1]].isupper() else "B"
+                    start, end = sqSelected, (row, col)
                 else:
                     dropped = True
 
@@ -123,8 +155,10 @@ def main():
                     moveMade = True
 
         if moveMade:
-            # validMoves = gs.getValidMoves()
-            # gs.makeMove(random.choice(validMoves))
+            validMoves = gs.getValidMoves()
+            if validMoves:
+                gs.makeMove(random.choice(validMoves), validMoves)
+
             if gs.move_log:
                 lastMove = gs.move_log[-1]
                 highlight = [(lastMove.sr, lastMove.sc), (lastMove.er, lastMove.ec)]
@@ -137,23 +171,25 @@ def main():
             moveMade = False
 
         # Probably a bad sign if I'm stacking this many damn parameters but saul good because I'm a master navigator
-        drawGameState(screen, gs, my_font, sqSelected, Holding, offset, highlight, redHighlight, promotion)
+        drawGameState(screen, gs, my_font, sqSelected, Holding, offset, highlight, redHighlight, promotion, colour)
         clock.tick(MAX_FPS)
         p.display.flip()
 
 
 # Responsible for the graphics!
-def drawGameState(screen, state, font, square, hold, offset, highlight, redHighlight, promotion):
-    # Draw board first obviously goofball. Don't draw what's being held. That ain't your job funct.
-    drawBoard(screen, state.board, square, hold, highlight, redHighlight)
-    drawCoordinates(screen, font)
+def drawGameState(screen, state, font, square, hold, offset, highlight, redHighlight, promotion, colour):
+    # Promotion is an interrupting game state. I don't know how to think about it.
+    if not promotion:
+        # Draw board first obviously goofball. Don't draw what's being held. That ain't your job funct.
+        drawBoard(screen, state.board, square, hold, highlight, redHighlight)
+        drawCoordinates(screen, font)
 
-    # If something is being held, draw it mate!
-    if hold:
-        drawHold(screen, state.board, offset, square)
+        # If something is being held, draw it mate!
+        if hold:
+            drawHold(screen, state.board, offset, square)
 
-    if promotion:
-        pass
+    else:
+        drawPromotionMenu(screen, colour)
 
 
 def drawBoard(screen, board, square, hold, highlight, redHighlight):
@@ -196,6 +232,7 @@ def drawCoordinates(screen, font):
         screen.blit(font.render(rowsToRanks[i], False, colour[i % 2]), p.Rect(3, 4 + i * SQ_SIZE, 6, 6))
         screen.blit(font.render(colsToFiles[i], False, colour[(i + 1) % 2]), p.Rect(55 + i * SQ_SIZE, 496, 6, 6))
 
+
 def drawHold(screen, board, offset, sqSelected):
     a, b = p.mouse.get_pos()
     y, x = sqSelected
@@ -206,6 +243,20 @@ def drawHold(screen, board, offset, sqSelected):
     screen.blit(IMAGES[board[y][x]], # + "big"
                 p.Rect(a - d + swing * math.cos(g), b - d + swing / 2 * math.sin(g), PIECE_SIZE, PIECE_SIZE))
 
+
+def drawPromotionMenu(screen, pieceColour):
+    colour = (105, 135, 76)
+    p.draw.rect(screen, colour, p.Rect(WIDTH // 4 - 5, HEIGHT // 2 - HEIGHT // 16 - 5, WIDTH // 2 + 10, HEIGHT // 8 + 10),
+                border_top_left_radius=4, border_top_right_radius=4,
+                border_bottom_left_radius=4, border_bottom_right_radius=4)
+    colour = (230, 238, 210)
+    p.draw.rect(screen, colour, p.Rect(WIDTH // 4, HEIGHT // 2 - HEIGHT // 16, WIDTH // 2, HEIGHT // 8),
+                border_top_left_radius=4, border_top_right_radius=4,
+                border_bottom_left_radius=4, border_bottom_right_radius=4)
+    options = ["q", "r", "b", "n"]
+    for i in range(4):
+        screen.blit(IMAGES[piecePlusColour[pieceColour + options[i]]],
+                    p.Rect(WIDTH // 4 + i * SQ_SIZE + 2.5, HEIGHT // 2 - HEIGHT // 16 + 2.5, PIECE_SIZE, PIECE_SIZE))
 
 if __name__ == "__main__":
     main()
