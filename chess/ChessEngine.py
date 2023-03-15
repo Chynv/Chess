@@ -1,5 +1,4 @@
 from CONST import *
-import random
 from collections import defaultdict
 
 
@@ -33,19 +32,19 @@ class GameState:
 
         self.whiteKingLocation = ()
         self.blackKingLocation = ()
+        self.whiteKingMoved = False
+        self.blackKingMoved = False
 
         for tRow in range(8):
             for tCol in range(8):
                 if self.board[tRow][tCol] == "K":
                     if self.whiteKingLocation == ():
                         self.whiteKingLocation = (tRow, tCol)
-                        print(self.whiteKingLocation)
                     else:
                         raise "Only one white king. This ain't 5D chess."
                 elif self.board[tRow][tCol] == "k":
                     if self.blackKingLocation == ():
                         self.blackKingLocation = (tRow, tCol)
-                        print(self.blackKingLocation)
                     else:
                         raise "Only one black king. This ain't 5D chess."
 
@@ -57,8 +56,21 @@ class GameState:
     def makeMove(self, move, validMoves):
         if move in validMoves:
 
-            if move.pieceMoved.lower() == "p" and (move.er == 0 or move.er == 7) and not len(move.id) == 5:
-                return "Promotion"
+            # Handling the pawn moves XD
+            if move.pieceMoved.lower() == "p":
+                # When a pawn moves twice it can be en passanted
+                if abs(move.er - move.sr) == 2:
+                    move.enPassantable = True
+                    move.enPassantLocation = (move.er + (2 * int(self.white_to_move) - 1), move.ec)
+
+                # Promotion baby!!!
+                elif "p" and (move.er == 0 or move.er == 7) and not len(move.id) == 5:
+                    return "Promotion"
+
+                # Wait a pawn moving diagonally and capturing nothing? Oh hell naw that's an En Passant
+                if move.pieceCaptured == "_" and abs(move.ec - move.sc) == 1:
+                    move.enPassant = True
+                    self.board[move.er + (2 * int(self.white_to_move) - 1)][move.ec] = "_"
 
             self.board[move.sr][move.sc] = "_"
             self.board[move.er][move.ec] = move.pieceMoved
@@ -75,7 +87,6 @@ class GameState:
                 self.whiteKingLocation = (move.er, move.ec)
             elif move.pieceMoved == "k":
                 self.blackKingLocation = (move.er, move.ec)
-            print(move.pieceMoved, piecePlusColour[col + "p"])
             if move.isPawnPromotion:
                 self.board[move.er][move.ec] = piecePlusColour[col + ["q", "r", "b", "n"][int(move.id[-1])]]
 
@@ -94,10 +105,12 @@ class GameState:
             self.whiteKingLocation = (move.sr, move.sc)
         elif move.pieceMoved == "k":
             self.blackKingLocation = (move.sr, move.sc)
+        if move.enPassant:
+            self.board[move.er + (2 * int(self.white_to_move) - 1)][move.ec] = "p" if self.white_to_move else "P"
 
-    # Okay. A move is legal if it of course it moves properly and it doesn't end with you in check
+    # Okay. A move is legal if it of course it moves properly, and it doesn't end with you in check
     # If there are no moves that don't leave you in check you dead as hell lmao
-    # If there are no moves and you're not in check it's a stalemate
+    # If there are no moves, and you're not in check it's a stalemate
     # I think to make it less computationally costly, I can project the moves from the king!
     # If it detects a knight in one knight move from itself it is IN CHECK! Coolio
 
@@ -123,9 +136,13 @@ class GameState:
                 self.whiteKingLocation = (move.sr, move.sc)
             elif move.pieceMoved == "k":
                 self.blackKingLocation = (move.sr, move.sc)
+
+            if move.pieceMoved.lower() == "p" and move.pieceCaptured == "_" and abs(move.ec - move.sc) == 1:
+                move.enPassant = True
+
         if len(moves) == 0:
 
-            # I forgot why I put this code here and it's not being used but Im afraid to remove it.
+            # I forgot why I put this code here, and it's not being used, but I'm afraid to remove it.
             # I'll get rid of that habit when I get a job lol
             # if self.white_to_move:
             #     r, c = self.whiteKingLocation
@@ -134,9 +151,9 @@ class GameState:
 
             if self.checkProject():
                 # Goofiest code you've ever done seen in your damn life
-                print("checkmate" + " %s wins" % ["white", "black"][int(self.white_to_move)])
+                print("Checkmate!" + " %s wins!" % ["white", "black"][int(self.white_to_move)])
             else:
-                print("stalemate")
+                print("Stalemate!")
 
         moveDict = defaultdict(list)
         for currMove in moves:
@@ -148,19 +165,35 @@ class GameState:
         moves = []
         for y in range(8):
             for x in range(8):
-                # I like how some parts of my code are nice and succint and other parts be lookin' like brainfuck
+                # I like how some parts of my code are nice and succinct and other parts be lookin' like brainfuck
                 if self.board[y][x].isupper() ^ self.white_to_move:
                     continue
                 piece = self.board[y][x].lower()
                 if piece == "_":
                     continue
-                self.moveFunctions[piece](y, x, moves)
+                # I can't figure out this problem. Why are the moves not enPassantable?
+                # Okay it was because when it was compared in MakeMoves, the ids were the same. The fix
+
+                # 16th of March 2023
+                # Was to just label a move as enpassantable in the makeMoves thing.
+                # I'm going to start dating the comments because that's fun!
+                # Okay next thing to do is CASTLING!!!! I'm scared.
+                # King moves twice and then bam the castle moves one block next to him.
+                # Problem is that if a square in on of the ones the king passes through is attacked it's not
+                # legal!
+                # I think the simple fix is to project on the king's current position, where the king castles
+                # to and the square in between
+                # Seems shrimple, actually.
+                if self.move_log and self.move_log[-1].enPassantable and piece == "p":
+                    self.moveFunctions[piece](y, x, moves, self.move_log[-1].enPassantLocation)
+                else:
+                    self.moveFunctions[piece](y, x, moves)
         return moves
 
     def projection(self, r, c, moves, direction, target=False):
         yDir, xDir = direction
 
-        # just in case. Don't want no infinite loops
+        # just in case. Don't want any infinite loops
         if abs(yDir) + abs(xDir) == 0:
             return
 
@@ -182,36 +215,42 @@ class GameState:
                         return mR, mC
                 return "_"
 
-    def getPawnMoves(self, r, c, moves):
-        if r == 0 or r == 7: # Bit of a shortcut that would break down in the case of variations but
+    def getPawnMoves(self, r, c, moves, eP=()):
+
+        # eP is just enPassant. Shortened because more than 120 characters is bad convention XD
+        if r == 0 or r == 7:  # It's a bit of a shortcut that would break down in the case of variations but
             # you sacrifice generalisability for brevity
             return
 
-        toBeAsssessed = []
+        toBeAssessed = []
 
-        if self.white_to_move: # white pawn moves, duh
+        if self.white_to_move:  # white pawn moves, duh
             # I should have kept their colour indicators in their names because underscore is a possibility
-            # So I gotta do something goofy like this!!! I know this code is forbidden!!! :(
+            # So I have to do something goofy like this!!! I know this code is forbidden!!! :(
             # Also I wanted to use FEN notation (just for the pieces) because it's cute as
             if self.board[r - 1][c] == "_":
-                toBeAsssessed.append(Move((r, c), (r - 1, c), self.board))
+                toBeAssessed.append(Move((r, c), (r - 1, c), self.board))
                 if r == 6 and self.board[r - 2][c] == "_":
-                    toBeAsssessed.append(Move((r, c), (r - 2, c), self.board))
-            if c > 0 and self.board[r - 1][c - 1].islower() and self.board[r - 1][c - 1] != "_":
-                toBeAsssessed.append(Move((r, c), (r - 1, c - 1), self.board))
-            if c < 7 and self.board[r - 1][c + 1].islower() and self.board[r - 1][c + 1] != "_":
-                toBeAsssessed.append(Move((r, c), (r - 1, c + 1), self.board))
-        else: # This code hurts my heart and when I implement en passant it may bite me
+                    toBeAssessed.append(Move((r, c), (r - 2, c), self.board))
+            if c > 0 and self.board[r - 1][c - 1].islower() and self.board[r - 1][c - 1] != "_" or (r - 1, c - 1) == eP:
+                toBeAssessed.append(Move((r, c), (r - 1, c - 1), self.board))
+            if c < 7 and self.board[r - 1][c + 1].islower() and self.board[r - 1][c + 1] != "_" or (r - 1, c + 1) == eP:
+                toBeAssessed.append(Move((r, c), (r - 1, c + 1), self.board))
+        else:  # This code hurts my heart and when I implement en passant it may bite me
+            # 16 March 2023
+            # En Passant added! This was not the source of my problems, I just overlooked the implementation
+            # of makeMove. Earlier I had overriden the __eq__ function and so the moves weren't being given
+            # the property of enPassantable.
             if self.board[r + 1][c] == "_":
-                toBeAsssessed.append(Move((r, c), (r + 1, c), self.board))
+                toBeAssessed.append(Move((r, c), (r + 1, c), self.board))
                 if r == 1 and self.board[r + 2][c] == "_":
-                    toBeAsssessed.append(Move((r, c), (r + 2, c), self.board))
-            if c > 0 and self.board[r + 1][c - 1].isupper() and self.board[r + 1][c - 1] != "_":
-                toBeAsssessed.append(Move((r, c), (r + 1, c - 1), self.board))
-            if c < 7 and self.board[r + 1][c + 1].isupper() and self.board[r + 1][c + 1] != "_":
-                toBeAsssessed.append(Move((r, c), (r + 1, c + 1), self.board))
+                    toBeAssessed.append(Move((r, c), (r + 2, c), self.board))
+            if c > 0 and self.board[r + 1][c - 1].isupper() and self.board[r + 1][c - 1] != "_" or (r + 1, c - 1) == eP:
+                toBeAssessed.append(Move((r, c), (r + 1, c - 1), self.board))
+            if c < 7 and self.board[r + 1][c + 1].isupper() and self.board[r + 1][c + 1] != "_" or (r + 1, c + 1) == eP:
+                toBeAssessed.append(Move((r, c), (r + 1, c + 1), self.board))
 
-        for currMove in toBeAsssessed:
+        for currMove in toBeAssessed:
             if currMove.er == 0 or currMove.er == 7:
                 eR, eC = currMove.er, currMove.ec
                 for i in range(4):
@@ -222,7 +261,7 @@ class GameState:
                 moves.append(currMove)
 
     #  Look at that code. So tasteful in its brevity. Three lines for a rook, three lines for a bishop and three
-    #  lines for a queen. Oh my god, it even has my watermark.
+    #  lines for a queen. And like 90 lines for pawn moves lol
 
     def getRookMoves(self, r, c, moves):
         for dir_ in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
@@ -241,7 +280,7 @@ class GameState:
         for a, b in [(2, 1), (1, 2), (-1, 2), (-2, 1), (-2, -1), (-1, -2), (1, -2), (2, -1)]:
             nR = a + r
             nC = b + c
-            if not(0 <= nR < 8 and 0 <= nC < 8):
+            if not (0 <= nR < 8 and 0 <= nC < 8):
                 continue
             if self.board[nR][nC] == "_":
                 moves.append(Move((r, c), (nR, nC), self.board))
@@ -264,14 +303,14 @@ class GameState:
                 if self.board[nR][nC].isupper() ^ isWhite:
                     moves.append(Move((r, c), (nR, nC), self.board))
 
-    def checkProject(self, retHighlight = False):
+    def checkProject(self, retHighlight=False):
 
         flag = False
         # I'll set it to True if I encounter something checking the current king. I don't want to return
         # immediately because I want to get all checkers in case of a double check. I don't think
-        # more than two checks are possible at once so I might implement something to check that I already
-        # have two things checking so I don't have to continue searching but it's also a very
-        # unlikely scenario in the first place so I wouldn't save much time.
+        # more than two checks are possible at once, so I might implement something to check that I already
+        # have two things checking, so I don't have to continue searching, but it's also a very
+        # unlikely scenario in the first place, so I wouldn't save much time.
 
         seen = []
         # I don't think it needs to be a set because if a queen checks like a rook it won't check like a bishop
@@ -319,7 +358,7 @@ class GameState:
                 flag = True
 
         # Pawns! They only ever attack adjacently diagonally and their direction remains the same. I can
-        # do a neat little trick with that fact by projecting from te king based upon who's turn it is
+        # do a neat little trick with that fact by projecting from te king based upon whose turn it is
         # nice and succinctly.
 
         for a, b in [(1 - 2 * int(self.white_to_move), -1), (1 - 2 * int(self.white_to_move), 1)]:
@@ -341,15 +380,21 @@ class GameState:
             if self.board[nR][nC] == piecePlusColour[col + "k"]:
                 # return True
                 seen.append((nR, nC))
-                # you will never red highlight the king so no need to flag it. You will only ever need to check
+                # you will never red-highlight the king so no need to flag it. You will only ever need to check
                 # for it when you make a move to make sure that your king does not fall within an attacked square
-                # by the enemy king. I'm not sure if this is bad programming practise but it feels right
+                # by the enemy king. I'm not sure if this is bad programming practise, but it feels right
                 return True
 
         if retHighlight:
             return seen
         else:
             return flag
+
+
+# 16 March 2023
+# IDE said it was a static function so I pulled it out.
+def getRankFile(row, col):
+    return colsToFiles[col] + rowsToRanks[row]
 
 
 class Move:
@@ -361,6 +406,9 @@ class Move:
         self.pieceCaptured = board[self.er][self.ec]
         self.isPawnPromotion = self.pieceMoved.lower() == "p" and (self.er == 0 or self.er == 7)
         self.id = str(self.sr) + str(self.sc) + str(self.er) + str(self.ec)
+        self.enPassantable = False
+        self.enPassant = False
+        self.enPassantLocation = ()
 
     def __eq__(self, other):
         if isinstance(other, Move):
@@ -368,7 +416,4 @@ class Move:
         return False
 
     def getChessNotation(self):
-        return self.getRankFile(self.sr, self.sc) + self.getRankFile(self.er, self.ec)
-
-    def getRankFile(self, row, col):
-        return colsToFiles[col] + rowsToRanks[row]
+        return getRankFile(self.sr, self.sc) + getRankFile(self.er, self.ec)

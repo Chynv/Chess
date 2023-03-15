@@ -111,8 +111,6 @@ def main():
                     gs.makeMove(g, validMoves)
                     promotion = False
 
-
-
             elif e.type == p.MOUSEBUTTONUP:
 
                 if promotion:
@@ -171,6 +169,7 @@ def main():
 
             redHighlight = gs.checkProject(True)
             if redHighlight:
+                print("Check!")
                 if gs.white_to_move:
                     kingLoc = gs.whiteKingLocation
                 else:
@@ -225,7 +224,6 @@ def drawBoard(screen, board, square, hold, highlight, redHighlight, moveDict, ki
             # elif (y, x) in highlight: # In case I want to make a different colour for moves
             #     colour = [(246,245,123), (212, 219, 127)][(y + x) % 2]
 
-
             # if (y, x) in redHighlight:
             #     colour = [(194, 35, 35), (194, 35, 35)][(y + x) % 2]
             #     moveCol = [(173, 31, 31), (176, 26, 26)][(y + x) % 2]
@@ -234,8 +232,6 @@ def drawBoard(screen, board, square, hold, highlight, redHighlight, moveDict, ki
             if redHighlight and (y, x) == kingLoc:
                 colour = [(194, 35, 35), (194, 35, 35)][(y + x) % 2]
                 moveCol = [(173, 31, 31), (176, 26, 26)][(y + x) % 2]
-
-
 
             p.draw.rect(screen, colour, p.Rect(x * SQ_SIZE, y * SQ_SIZE, SQ_SIZE, SQ_SIZE))
 
@@ -287,6 +283,7 @@ def drawPromotionMenu(screen, pieceColour):
     for i in range(4):
         screen.blit(IMAGES[piecePlusColour[pieceColour + options[i]]],
                     p.Rect(WIDTH // 4 + i * SQ_SIZE + 2.5, HEIGHT // 2 - HEIGHT // 16 + 2.5, PIECE_SIZE, PIECE_SIZE))
+
 
 if __name__ == "__main__":
     main()
