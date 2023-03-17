@@ -4,7 +4,6 @@ from CONST import *
 from chess import ChessEngine
 from time import time
 import math
-import random
 
 
 def loadImages():
@@ -58,6 +57,7 @@ def main():
                 if not promotion:
                     col = location[0] // SQ_SIZE
                     row = location[1] // SQ_SIZE
+                    # print(row, col)
 
                     offset = (location[0] % SQ_SIZE, location[1] % SQ_SIZE)
 
@@ -95,14 +95,14 @@ def main():
                         # Okay it's an empty square? Unselect.
                         else:
                             sqSelected = ()
-                else: # promotion menu!!
+                else:  # promotion menu!!
 
                     # I think the move will be made in the promotion menu. When you make a selection,
 
                     startX = WIDTH // 4
                     x, y = location
                     if not (WIDTH // 4 < x < 3 * WIDTH // 4 and HEIGHT // 2 - HEIGHT // 16 < y < 9 * HEIGHT // 16):
-                        promotion = False # 8 - 1 + 2
+                        promotion = False  # 8 - 1 + 2
                         continue
                     moveMade = True
                     piece = (x - startX) // SQ_SIZE
@@ -179,20 +179,22 @@ def main():
             moveMade = False
 
         # Probably a bad sign if I'm stacking this many damn parameters but saul good because I'm a master navigator
-        drawGameState(screen, gs, my_font, sqSelected, Holding, offset, highlight, redHighlight, promotion, colour, moveDict, kingLoc)
+        drawGameState(screen, gs, my_font, sqSelected, Holding, offset, highlight, redHighlight,
+                      promotion, colour, moveDict, kingLoc)
         clock.tick(MAX_FPS)
         p.display.flip()
 
 
 # Responsible for the graphics!
-def drawGameState(screen, state, font, square, hold, offset, highlight, redHighlight, promotion, colour, moveDict, kingLoc):
+def drawGameState(screen, state, font, square, hold, offset, highlight, redHighlight, promotion,
+                  colour, moveDict, kingLoc):
     # Promotion is an interrupting game state. I don't know how to think about it.
     if not promotion:
         # Draw board first obviously goofball. Don't draw what's being held. That ain't your job funct.
         drawBoard(screen, state.board, square, hold, highlight, redHighlight, moveDict, kingLoc)
         drawCoordinates(screen, font)
 
-        # If something is being held, draw it mate! Haha mate good pun.
+        # If something is being held, draw it mate! Haha - mate - good pun.
         if hold:
             drawHold(screen, state.board, offset, square)
 
@@ -201,12 +203,11 @@ def drawGameState(screen, state, font, square, hold, offset, highlight, redHighl
 
 
 def drawBoard(screen, board, square, hold, highlight, redHighlight, moveDict, kingLoc):
-    a, b = p.mouse.get_pos()
     x_pos, y_pos = p.mouse.get_pos()
     col, row = x_pos // SQ_SIZE, y_pos // SQ_SIZE
     for y in range(DIMENSION):
         for x in range(DIMENSION):
-            colour = [(230, 238, 210),(105, 135, 76)][(y + x) % 2]
+            colour = [(230, 238, 210), (105, 135, 76)][(y + x) % 2]
 
             if y == row and x == col:
                 al = 0.3
@@ -219,7 +220,7 @@ def drawBoard(screen, board, square, hold, highlight, redHighlight, moveDict, ki
             # just overriding the colour because I'm lazy bones
             moveCol = [(207, 217, 182), (95, 125, 67)][(y + x) % 2]
             if (y, x) in [square] + highlight:
-                colour = [(246,245,123), (212, 219, 127)][(y + x) % 2]
+                colour = [(246, 245, 123), (212, 219, 127)][(y + x) % 2]
                 moveCol = [(230, 230, 108), (194, 201, 113)][(y + x) % 2]
             # elif (y, x) in highlight: # In case I want to make a different colour for moves
             #     colour = [(246,245,123), (212, 219, 127)][(y + x) % 2]
@@ -238,8 +239,10 @@ def drawBoard(screen, board, square, hold, highlight, redHighlight, moveDict, ki
             if (y, x) in moveDict[square]:
                 if board[y][x] == "_":
                     # p.draw.circle(screen, moveCol, ((x + 1/2) * SQ_SIZE, (y + 1/2) * SQ_SIZE), SQ_SIZE//6)
-                    gfd.filled_circle(screen, int((x + 1 / 2) * SQ_SIZE), int((y + 1 / 2) * SQ_SIZE), SQ_SIZE // 6, moveCol)
-                    gfd.aacircle(screen, int((x + 1 / 2) * SQ_SIZE), int((y + 1 / 2) * SQ_SIZE), SQ_SIZE // 6, moveCol)
+                    gfd.filled_circle(screen, int((x + 1 / 2) * SQ_SIZE),
+                                      int((y + 1 / 2) * SQ_SIZE), SQ_SIZE // 6, moveCol)
+                    gfd.aacircle(screen, int((x + 1 / 2) * SQ_SIZE),
+                                 int((y + 1 / 2) * SQ_SIZE), SQ_SIZE // 6, moveCol)
 
                 else:
                     p.draw.circle(screen, moveCol, ((x + 1 / 2) * SQ_SIZE, (y + 1 / 2) * SQ_SIZE), SQ_SIZE // 2, width=6)
@@ -266,7 +269,10 @@ def drawHold(screen, board, offset, sqSelected):
     # d = (PIECE_SIZE + 10) // 2
     g = time() * 3
     swing = HEIGHT // 64
-    screen.blit(IMAGES[board[y][x]], # + "big"
+    # 16 March 2023
+    # Man there's something really cool about goofy code. I can just append the word "big" to a string,
+    # and it accesses a different item altogether.
+    screen.blit(IMAGES[board[y][x]],  # + "big"
                 p.Rect(a - d + swing * math.cos(g), b - d + swing / 2 * math.sin(g), PIECE_SIZE, PIECE_SIZE))
 
 

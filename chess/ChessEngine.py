@@ -35,6 +35,9 @@ class GameState:
         self.whiteKingMoved = False
         self.blackKingMoved = False
 
+        # The rooks! I will set it to true if it dies too.
+        self.rookMoved = [False for _ in range(4)]
+
         for tRow in range(8):
             for tCol in range(8):
                 if self.board[tRow][tCol] == "K":
@@ -51,6 +54,18 @@ class GameState:
     def reset(self):
         self.board = unpack_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
         self.white_to_move = True
+        self.whiteKingMoved = False
+        self.blackKingMoved = False
+
+        for tRow in range(8):
+            for tCol in range(8):
+                if self.board[tRow][tCol] == "K":
+                    if self.whiteKingLocation == ():
+                        self.whiteKingLocation = (tRow, tCol)
+                elif self.board[tRow][tCol] == "k":
+                    if self.blackKingLocation == ():
+                        self.blackKingLocation = (tRow, tCol)
+
         self.move_log = []
 
     def makeMove(self, move, validMoves):
@@ -72,6 +87,17 @@ class GameState:
                     move.enPassant = True
                     self.board[move.er + (2 * int(self.white_to_move) - 1)][move.ec] = "_"
 
+            # 17 March 2023
+            # Whether it's taken or it moves, it will NEVER be a part of a castle.
+            # I make the move with "firstRookMove" so that I can set rookMoved of the respective rook back
+            # to False. It's all the information required.
+            if (move.sr, move.sc) in cornersToRooks:
+                self.rookMoved[cornersToRooks[(move.sr, move.sc)]] = True
+                move.firstRookMove = (move.sr, move.sc)
+            elif (move.er, move.ec) in cornersToRooks:
+                self.rookMoved[cornersToRooks[(move.er, move.ec)]] = True
+                move.firstRookMove = (move.er, move.ec)
+
             self.board[move.sr][move.sc] = "_"
             self.board[move.er][move.ec] = move.pieceMoved
             self.move_log.append(move)
@@ -85,8 +111,47 @@ class GameState:
 
             if move.pieceMoved == "K":
                 self.whiteKingLocation = (move.er, move.ec)
+
+                # Cool castle code brother man
+                if not self.whiteKingMoved:
+                    self.whiteKingMoved = True
+                    move.firstKingMove = True
+                    mVec = move.ec - move.sc
+                    if abs(mVec) == 2:
+                        move.castled = True
+                        # OH MY GOD! HE CASTLED HE DID THE THING OH MY GOD
+                        if mVec > 0:
+                            self.rookMoved[3] = True
+                            self.board[7][7] = "_"
+                            self.board[7][5] = "R"
+                            move.castleDir = 1
+                        else:
+                            self.rookMoved[2] = True
+                            self.board[7][0] = "_"
+                            self.board[7][3] = "R"
+                            move.castleDir = -1
+
             elif move.pieceMoved == "k":
                 self.blackKingLocation = (move.er, move.ec)
+
+                if not self.blackKingMoved:
+                    self.blackKingMoved = True
+                    move.firstKingMove = True
+                    mVec = move.ec - move.sc
+                    if abs(mVec) == 2:
+                        move.castled = True
+                        # OH MY GOD! HE CASTLED HE DID THE THING OH MY GOD
+                        if mVec > 0:
+                            self.rookMoved[1] = True
+                            self.board[0][7] = "_"
+                            self.board[0][5] = "r"
+                            move.castleDir = 1
+                        else:
+                            self.rookMoved[0] = True
+                            self.board[0][0] = "_"
+                            self.board[0][3] = "r"
+                            move.castleDir = -1
+
             if move.isPawnPromotion:
                 self.board[move.er][move.ec] = piecePlusColour[col + ["q", "r", "b", "n"][int(move.id[-1])]]
 
@@ -103,8 +168,26 @@ class GameState:
         self.white_to_move = not self.white_to_move
         if move.pieceMoved == "K":
             self.whiteKingLocation = (move.sr, move.sc)
+            self.whiteKingMoved = not move.firstKingMove
         elif move.pieceMoved == "k":
             self.blackKingLocation = (move.sr, move.sc)
+            self.blackKingMoved = not move.firstKingMove
+
+        if move.castled:
+            if move.castleDir == 1:
+                self.board[move.sr][7] = "R" if self.white_to_move else "r"
+                self.board[move.sr][5] = "_"
+            else:
+                self.board[move.sr][0] = "R" if self.white_to_move else "r"
+                self.board[move.sr][3] = "_"
+            # To those of you that see this code and think it's cool and succinct, it's not.
+            # I'm just so lazy and have a severe lack of delayed gratification so my code is goofy like this
+            self.rookMoved[2 * int(self.white_to_move) + (move.castleDir + 1)//2] = False
+        elif move.firstRookMove:
+            # Okay... I kind of omitted some information for brevity's sake, and now it's biting me.
+            # I know a rook was taken or it moved. I could just use colour + captured/moved.
+            self.rookMoved[cornersToRooks[move.firstRookMove]] = False
+
         if move.enPassant:
             self.board[move.er + (2 * int(self.white_to_move) - 1)][move.ec] = "p" if self.white_to_move else "P"
 
@@ -172,10 +255,9 @@ class GameState:
                 if piece == "_":
                     continue
                 # I can't figure out this problem. Why are the moves not enPassantable?
-                # Okay it was because when it was compared in MakeMoves, the ids were the same. The fix
-
+                # Okay it was because when it was compared in MakeMoves, the ids were the same.
                 # 16th of March 2023
-                # Was to just label a move as enpassantable in the makeMoves thing.
+                # The fix was to just label a move as enpassantable in the makeMoves thing.
                 # I'm going to start dating the comments because that's fun!
                 # Okay next thing to do is CASTLING!!!! I'm scared.
                 # King moves twice and then bam the castle moves one block next to him.
@@ -184,20 +266,26 @@ class GameState:
                 # I think the simple fix is to project on the king's current position, where the king castles
                 # to and the square in between
                 # Seems shrimple, actually.
+                # King hasn't moved, squares from king to rook are empty, king and 2 squares from king to rook are not
+                # in check / under attack and rook is ALIVE and hasn't moved.
                 if self.move_log and self.move_log[-1].enPassantable and piece == "p":
                     self.moveFunctions[piece](y, x, moves, self.move_log[-1].enPassantLocation)
                 else:
                     self.moveFunctions[piece](y, x, moves)
         return moves
 
-    def projection(self, r, c, moves, direction, target=False):
+    def projection(self, r, c, moves, direction, target=False, oppColour="FigureItOut"):
         yDir, xDir = direction
 
         # just in case. Don't want any infinite loops
         if abs(yDir) + abs(xDir) == 0:
             return
 
-        isWhite = self.board[r][c].isupper()
+        # Don't question it.
+        if oppColour != "FigureItOut":
+            isWhite = oppColour == "B" # I know it's goofy but shut up
+        else:
+            isWhite = self.board[r][c].isupper()
         mR, mC = r, c
         while True:
             mR += yDir
@@ -302,8 +390,32 @@ class GameState:
             else:
                 if self.board[nR][nC].isupper() ^ isWhite:
                     moves.append(Move((r, c), (nR, nC), self.board))
+        # 16 March 2023
+        # I'm just gonna hard code it in. It feels evil, but it's probably the fastest method.
+        # Okay now that I'm writing this, this is a nightmare lol
+        # but the conditions are kind of overly specific. You need to check ONLY the squares the king is on,
+        # goes to and the square in between. I guess I could stick in a for loop in there for the giggles xD
+        # haha that's funny
+        if isWhite and not self.whiteKingMoved:
 
-    def checkProject(self, retHighlight=False):
+            if all(self.board[7][i] == "_" for i in range(5, 7)) \
+                    and not any(self.checkProject(pos=(7, c)) for c in range(4, 7)) and not self.rookMoved[3]:
+                moves.append(Move((r, c), (r, c + 2), self.board))
+
+            if all(self.board[7][i] == "_" for i in range(1, 4)) \
+                    and not any(self.checkProject(pos=(7, c)) for c in range(2, 5)) and not self.rookMoved[2]:
+                moves.append(Move((r, c), (r, c - 2), self.board))
+
+        if not isWhite and not self.blackKingMoved:
+            if all(self.board[0][i] == "_" for i in range(5, 7)) \
+                    and not any(self.checkProject(pos=(0, c)) for c in range(4, 7)) and not self.rookMoved[1]:
+                moves.append(Move((r, c), (r, c + 2), self.board))
+
+            if all(self.board[0][i] == "_" for i in range(1, 4)) \
+                    and not any(self.checkProject(pos=(0, c)) for c in range(2, 5)) and not self.rookMoved[0]:
+                moves.append(Move((r, c), (r, c - 2), self.board))
+
+    def checkProject(self, retHighlight=False, pos=()):
 
         flag = False
         # I'll set it to True if I encounter something checking the current king. I don't want to return
@@ -315,13 +427,16 @@ class GameState:
         seen = []
         # I don't think it needs to be a set because if a queen checks like a rook it won't check like a bishop
 
-        if self.white_to_move:
-            col = "B"
-            r, c = self.whiteKingLocation
+        if pos != ():
+            r, c = pos
+            col = "B" if self.white_to_move else "W"
         else:
-            col = "W"
-            r, c = self.blackKingLocation
-
+            if self.white_to_move:
+                col = "B"
+                r, c = self.whiteKingLocation
+            else:
+                col = "W"
+                r, c = self.blackKingLocation
         # Project knight moves from king. If knight of opposite colour detected, return True
         for a, b in [(2, 1), (1, 2), (-1, 2), (-2, 1), (-2, -1), (-1, -2), (1, -2), (2, -1)]:
             nR = a + r
@@ -335,7 +450,7 @@ class GameState:
 
         # bishop & queen
         for dir_ in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
-            coordsCollided = self.projection(r, c, [], dir_, True)
+            coordsCollided = self.projection(r, c, [], dir_, True, col)
             if coordsCollided == "_":
                 continue
             nR, nC = coordsCollided
@@ -347,7 +462,7 @@ class GameState:
 
         # rook & queen
         for dir_ in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-            coordsCollided = self.projection(r, c, [], dir_, True)
+            coordsCollided = self.projection(r, c, [], dir_, True, col)
             if coordsCollided == "_":
                 continue
             nR, nC = coordsCollided
@@ -392,7 +507,7 @@ class GameState:
 
 
 # 16 March 2023
-# IDE said it was a static function so I pulled it out.
+# IDE said it was a static function, so I pulled it out.
 def getRankFile(row, col):
     return colsToFiles[col] + rowsToRanks[row]
 
@@ -409,6 +524,10 @@ class Move:
         self.enPassantable = False
         self.enPassant = False
         self.enPassantLocation = ()
+        self.castled = False
+        self.firstKingMove = False
+        self.firstRookMove = False
+
 
     def __eq__(self, other):
         if isinstance(other, Move):

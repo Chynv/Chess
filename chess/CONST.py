@@ -24,3 +24,9 @@ piecePlusColour = {
     "Wk": "K",
     "Wp": "P"
 }
+cornersToRooks = {
+    (0, 0): 0,
+    (0, 7): 1,
+    (7, 0): 2,
+    (7, 7): 3
+}
