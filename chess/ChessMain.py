@@ -46,6 +46,9 @@ def main():
     start, end = (), ()
     kingLoc = ()
 
+    # Board orientation!!!!!!
+    flip = False
+
     while running:
         for e in p.event.get():
             if e.type == p.QUIT:
@@ -57,6 +60,11 @@ def main():
                 if not promotion:
                     col = location[0] // SQ_SIZE
                     row = location[1] // SQ_SIZE
+
+                    # Flips the hovered piece if it's flipped!
+                    col = 7 - col if flip else col
+                    row = 7 - row if flip else row
+
                     # print(row, col)
 
                     offset = (location[0] % SQ_SIZE, location[1] % SQ_SIZE)
@@ -127,6 +135,9 @@ def main():
                 col = location[0] // SQ_SIZE
                 row = location[1] // SQ_SIZE
 
+                col = 7 - col if flip else col
+                row = 7 - row if flip else row
+
                 Square = (row, col)
 
                 if sqSelected == Square:
@@ -154,6 +165,8 @@ def main():
                     sqSelected = ()
                     Holding = False
                     moveMade = True
+                elif e.key == p.K_f:
+                    flip = not flip
 
         if moveMade:
             # random robot. Very goofy when you try to undo moves
@@ -180,19 +193,19 @@ def main():
 
         # Probably a bad sign if I'm stacking this many damn parameters but saul good because I'm a master navigator
         drawGameState(screen, gs, my_font, sqSelected, Holding, offset, highlight, redHighlight,
-                      promotion, colour, moveDict, kingLoc)
+                      promotion, colour, moveDict, kingLoc, flip)
         clock.tick(MAX_FPS)
         p.display.flip()
 
 
 # Responsible for the graphics!
 def drawGameState(screen, state, font, square, hold, offset, highlight, redHighlight, promotion,
-                  colour, moveDict, kingLoc):
+                  colour, moveDict, kingLoc, flip):
     # Promotion is an interrupting game state. I don't know how to think about it.
     if not promotion:
         # Draw board first obviously goofball. Don't draw what's being held. That ain't your job funct.
-        drawBoard(screen, state.board, square, hold, highlight, redHighlight, moveDict, kingLoc)
-        drawCoordinates(screen, font)
+        drawBoard(screen, state.board, square, hold, highlight, redHighlight, moveDict, kingLoc, flip)
+        drawCoordinates(screen, font, flip)
 
         # If something is being held, draw it mate! Haha - mate - good pun.
         if hold:
@@ -202,64 +215,70 @@ def drawGameState(screen, state, font, square, hold, offset, highlight, redHighl
         drawPromotionMenu(screen, colour)
 
 
-def drawBoard(screen, board, square, hold, highlight, redHighlight, moveDict, kingLoc):
+def drawBoard(screen, board, square, hold, highlight, redHighlight, moveDict, kingLoc, flip):
     x_pos, y_pos = p.mouse.get_pos()
     col, row = x_pos // SQ_SIZE, y_pos // SQ_SIZE
     for y in range(DIMENSION):
         for x in range(DIMENSION):
-            colour = [(230, 238, 210), (105, 135, 76)][(y + x) % 2]
+            polarity = (y + x + int(flip)) % 2
+            # The Rendered Y and X coords
+            rY = 7 - y if flip else y
+            rX = 7 - x if flip else x
 
-            if y == row and x == col:
+            colour = [(230, 238, 210), (105, 135, 76)][polarity]
+
+            if rY == row and rX == col:
                 al = 0.3
                 r, g, b = colour
                 r, g, b = r * (1 - al), g * (1 - al), b * (1 - al)
-                mr, mg, mb = [(105, 135, 76), (230, 238, 210)][(y + x) % 2]
+                mr, mg, mb = [(105, 135, 76), (230, 238, 210)][polarity]
                 mr, mg, mb = mr * al, mg * al, mb * al
                 colour = (r + mr, g + mg, b + mb)
 
             # just overriding the colour because I'm lazy bones
-            moveCol = [(207, 217, 182), (95, 125, 67)][(y + x) % 2]
+            moveCol = [(207, 217, 182), (95, 125, 67)][polarity]
             if (y, x) in [square] + highlight:
-                colour = [(246, 245, 123), (212, 219, 127)][(y + x) % 2]
-                moveCol = [(230, 230, 108), (194, 201, 113)][(y + x) % 2]
+                colour = [(246, 245, 123), (212, 219, 127)][polarity]
+                moveCol = [(230, 230, 108), (194, 201, 113)][polarity]
             # elif (y, x) in highlight: # In case I want to make a different colour for moves
-            #     colour = [(246,245,123), (212, 219, 127)][(y + x) % 2]
+            #     colour = [(246,245,123), (212, 219, 127)][polarity]
 
             # if (y, x) in redHighlight:
-            #     colour = [(194, 35, 35), (194, 35, 35)][(y + x) % 2]
-            #     moveCol = [(173, 31, 31), (176, 26, 26)][(y + x) % 2]
+            #     colour = [(194, 35, 35), (194, 35, 35)][polarity]
+            #     moveCol = [(173, 31, 31), (176, 26, 26)][polarity]
             # I don't really like the red highlight. I might enable it later but it doesn't look that good.
             # Instead the king will be highlighted red.
             if redHighlight and (y, x) == kingLoc:
-                colour = [(194, 35, 35), (194, 35, 35)][(y + x) % 2]
-                moveCol = [(173, 31, 31), (176, 26, 26)][(y + x) % 2]
+                colour = [(194, 35, 35), (194, 35, 35)][polarity]
+                moveCol = [(173, 31, 31), (176, 26, 26)][polarity]
 
-            p.draw.rect(screen, colour, p.Rect(x * SQ_SIZE, y * SQ_SIZE, SQ_SIZE, SQ_SIZE))
+            p.draw.rect(screen, colour, p.Rect(rX * SQ_SIZE, rY * SQ_SIZE, SQ_SIZE, SQ_SIZE))
 
             if (y, x) in moveDict[square]:
                 if board[y][x] == "_":
                     # p.draw.circle(screen, moveCol, ((x + 1/2) * SQ_SIZE, (y + 1/2) * SQ_SIZE), SQ_SIZE//6)
-                    gfd.filled_circle(screen, int((x + 1 / 2) * SQ_SIZE),
-                                      int((y + 1 / 2) * SQ_SIZE), SQ_SIZE // 6, moveCol)
-                    gfd.aacircle(screen, int((x + 1 / 2) * SQ_SIZE),
-                                 int((y + 1 / 2) * SQ_SIZE), SQ_SIZE // 6, moveCol)
+                    gfd.filled_circle(screen, int((rX + 1 / 2) * SQ_SIZE),
+                                      int((rY + 1 / 2) * SQ_SIZE), SQ_SIZE // 6, moveCol)
+                    gfd.aacircle(screen, int((rX + 1 / 2) * SQ_SIZE),
+                                 int((rY + 1 / 2) * SQ_SIZE), SQ_SIZE // 6, moveCol)
 
                 else:
-                    p.draw.circle(screen, moveCol, ((x + 1 / 2) * SQ_SIZE, (y + 1 / 2) * SQ_SIZE), SQ_SIZE // 2, width=6)
-                    gfd.aacircle(screen, int((x + 1 / 2) * SQ_SIZE), int((y + 1 / 2) * SQ_SIZE), SQ_SIZE // 2, moveCol)
+                    p.draw.circle(screen, moveCol, ((rX + 1 / 2) * SQ_SIZE, (rY + 1 / 2) * SQ_SIZE), SQ_SIZE // 2, width=5)
+                    gfd.aacircle(screen, int((rX + 1 / 2) * SQ_SIZE), int((rY + 1 / 2) * SQ_SIZE), SQ_SIZE // 2, moveCol)
             d = (SQ_SIZE - PIECE_SIZE) / 2
             if hold and square == (y, x):
                 continue
             if board[y][x] != "_":
                 screen.blit(IMAGES[board[y][x]],
-                            p.Rect(x * SQ_SIZE + d, y * SQ_SIZE + d, PIECE_SIZE, PIECE_SIZE))
+                            p.Rect(rX * SQ_SIZE + d, rY * SQ_SIZE + d, PIECE_SIZE, PIECE_SIZE))
 
 
-def drawCoordinates(screen, font):
+def drawCoordinates(screen, font, flip):
     colour = [(105, 135, 76), (230, 238, 210)]
     for i in range(DIMENSION):
-        screen.blit(font.render(rowsToRanks[i], False, colour[i % 2]), p.Rect(3, 4 + i * SQ_SIZE, 6, 6))
-        screen.blit(font.render(colsToFiles[i], False, colour[(i + 1) % 2]), p.Rect(55 + i * SQ_SIZE, 496, 6, 6))
+        pos = 7 - i if flip else i
+        screen.blit(font.render(rowsToRanks[pos], False, colour[(i + int(flip)) % 2]), p.Rect(3, 4 + i * SQ_SIZE, 6, 6))
+        screen.blit(font.render(colsToFiles[pos], False, colour[(i + 1 + int(flip)) % 2]), p.Rect(55 + i * SQ_SIZE, 496, 6, 6))
 
 
 def drawHold(screen, board, offset, sqSelected):
