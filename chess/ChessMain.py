@@ -169,6 +169,7 @@ def main():
                     flip = not flip
 
         if moveMade:
+            flip = not flip
             # random robot. Very goofy when you try to undo moves
             # validMoves = gs.getValidMoves()
             # if validMoves:
@@ -220,7 +221,7 @@ def drawBoard(screen, board, square, hold, highlight, redHighlight, moveDict, ki
     col, row = x_pos // SQ_SIZE, y_pos // SQ_SIZE
     for y in range(DIMENSION):
         for x in range(DIMENSION):
-            polarity = (y + x + int(flip)) % 2
+            polarity = (y + x) % 2
             # The Rendered Y and X coords
             rY = 7 - y if flip else y
             rX = 7 - x if flip else x
@@ -277,8 +278,8 @@ def drawCoordinates(screen, font, flip):
     colour = [(105, 135, 76), (230, 238, 210)]
     for i in range(DIMENSION):
         pos = 7 - i if flip else i
-        screen.blit(font.render(rowsToRanks[pos], False, colour[(i + int(flip)) % 2]), p.Rect(3, 4 + i * SQ_SIZE, 6, 6))
-        screen.blit(font.render(colsToFiles[pos], False, colour[(i + 1 + int(flip)) % 2]), p.Rect(55 + i * SQ_SIZE, 496, 6, 6))
+        screen.blit(font.render(rowsToRanks[pos], False, colour[i % 2]), p.Rect(3, 4 + i * SQ_SIZE, 6, 6))
+        screen.blit(font.render(colsToFiles[pos], False, colour[(i + 1) % 2]), p.Rect(55 + i * SQ_SIZE, 496, 6, 6))
 
 
 def drawHold(screen, board, offset, sqSelected):
