@@ -47,6 +47,7 @@ def main():
     kingLoc = ()
 
     # Board orientation!!!!!!
+    autoFlip = False
     flip = False
 
     while running:
@@ -169,7 +170,8 @@ def main():
                     flip = not flip
 
         if moveMade:
-            flip = not flip
+            if autoFlip:
+                flip = not flip
             # random robot. Very goofy when you try to undo moves
             # validMoves = gs.getValidMoves()
             # if validMoves:
