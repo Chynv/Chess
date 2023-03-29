@@ -4,6 +4,7 @@ from CONST import *
 from chess import ChessEngine
 from time import time
 import math
+from collections import deque
 
 
 def loadImages():
@@ -47,8 +48,11 @@ def main():
     kingLoc = ()
 
     # Board orientation!!!!!!
-    autoFlip = False
+    autoFlip = True
     flip = False
+
+    # The Animation Queue!!!!
+    animationQueue = deque()
 
     while running:
         for e in p.event.get():
@@ -213,6 +217,12 @@ def drawGameState(screen, state, font, square, hold, offset, highlight, redHighl
         # If something is being held, draw it mate! Haha - mate - good pun.
         if hold:
             drawHold(screen, state.board, offset, square)
+
+        # I have the really cool idea. Calling it the animation queue. It's probably been done before but it
+        # sounds like it'd be perfect.
+        # Each animation has a start time and duration of course and a basic rule which defines the animation,
+        # and it will be re-appended to the queue if it has not yet been finished.
+        # I like this. Animation Queue.
 
     else:
         drawPromotionMenu(screen, colour)

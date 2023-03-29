@@ -202,8 +202,11 @@ class GameState:
         for move in self.getAllPossibleMoves():
             # Kind of a back track. Change the board and then check a condition and then change it back.
             # This will need to be modified when en passant and castling are implemented.
+            enPas = move.pieceCaptured == "_" and abs(move.ec - move.sc) == 1 and move.pieceMoved.lower() == "p"
             self.board[move.sr][move.sc] = "_"
             self.board[move.er][move.ec] = move.pieceMoved
+            if enPas:
+                self.board[move.er + (2 * int(self.white_to_move) - 1)][move.ec] = "_"
 
             if move.pieceMoved == "K":
                 self.whiteKingLocation = (move.er, move.ec)
@@ -212,6 +215,9 @@ class GameState:
 
             if not self.checkProject():
                 moves.append(move)
+
+            if enPas:
+                self.board[move.er + (2 * int(self.white_to_move) - 1)][move.ec] = "p" if self.white_to_move else "P"
             self.board[move.sr][move.sc] = move.pieceMoved
             self.board[move.er][move.ec] = move.pieceCaptured
 
