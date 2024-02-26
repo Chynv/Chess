@@ -48,7 +48,7 @@ def main():
     kingLoc = ()
 
     # Board orientation!!!!!!
-    autoFlip = True
+    autoFlip = False
     flip = False
 
     # The Animation Queue!!!!
